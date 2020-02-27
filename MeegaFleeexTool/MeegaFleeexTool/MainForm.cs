@@ -194,7 +194,7 @@ namespace MeegaFleeexTool
 
             ZucchettiPageDownloader downloader = new ZucchettiPageDownloader();
 
-            TimbratureBuilder localtimbrature = new TimbratureBuilder(dateTimePicker.Value.Date);
+            TimbratureBuilder localtimbrature = new TimbratureBuilder(Utils.getFirstWorkingDayOfWeekAsDate(dateTimePicker.Value.Date));
             var collection = downloader.DownloadTimbratureCurrentMonth(credential.GetUser(), credential.GetPassword(), (DateTime)e.Argument, localtimbrature, worker);
             e.Result = localtimbrature;
 
