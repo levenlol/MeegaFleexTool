@@ -58,8 +58,13 @@ namespace MeegaFleeexTool
         // sunday is consider the first day
         public static int GetFirstWorkingDayOfWeek(DateTime dayTime)
         {
-            int firstDayOfWeek = GetFirstDayOfWeek(dayTime);
-            return firstDayOfWeek + 1;
+            return getFirstWorkingDayOfWeekAsDate(dayTime).Day;
+        }
+
+        public static DateTime getFirstWorkingDayOfWeekAsDate(DateTime dayTime)
+        {
+            // sunday is consider the first day
+            return dayTime.AddDays(1- (int)dayTime.DayOfWeek);
         }
     }
 }

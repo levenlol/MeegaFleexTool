@@ -21,6 +21,7 @@ namespace MeegaFleeexTool.Timbrature
     public class DayDescriptor
     {
         private DayOfWeek day;
+        private int dayOfMonth;
         private int orarioEntrata;
         private int orarioUscita;
         private int ritardi;
@@ -38,8 +39,9 @@ namespace MeegaFleeexTool.Timbrature
         public int Giustificativi { get => giustificativi; }
         public int ActualWorked { get => actualWorked; }
         public WorkDayType DayType { get => dayType; }
+        public int DayOfMonth { get => dayOfMonth; }
 
-        public DayDescriptor(DayOfWeek d, WorkDayType t, int late = 0, int rol = 0)
+        public DayDescriptor(DayOfWeek d, WorkDayType t, int dayOfMonth = 0, int late = 0, int rol = 0)
         {
             day = d;
             dayType = t;
@@ -49,7 +51,7 @@ namespace MeegaFleeexTool.Timbrature
             SetWorkedHours(0, 0);
         }
 
-        public DayDescriptor(DayOfWeek d, int entrata, int uscita, WorkDayType t, int late = 0, int rol = 0)
+        public DayDescriptor(DayOfWeek d, int entrata, int uscita, WorkDayType t, int dayOfMonth = 0, int late = 0, int rol = 0)
         {
             day = d;
             dayType = t;
@@ -218,15 +220,34 @@ namespace MeegaFleeexTool.Timbrature
 
         public const int WEEKLY_HOURS = 40;
 
-        private MonthDescriptor monthDescriptor;
-        public MonthDescriptor Month{ get => monthDescriptor; }
-
+        private List<DayDescriptor> days;
+        public List<DayDescriptor> Days { get => days; }
 
         public TimbratureBuilder(DateTime date)
         {
-            monthDescriptor = new MonthDescriptor(date.Year, date.Month);
-        }
+            days = new List<DayDescriptor>(5);
 
+            for (int i = 0; i < 5; i++)
+            {
+                DayDescriptor d = new DayDescriptor(date.DayOfWeek, GetWorkDayType(date), date.Day);
+                days.Add(d);
+
+                date = date.AddDays(1);
+            }
+        }
+        private WorkDayType GetWorkDayType(DateTime date)
+        {
+            bool holiday = DateSystem.IsPublicHoliday(date, CountryCode.IT);
+
+            if (holiday)
+                return WorkDayType.Festivity;
+
+            if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+                return WorkDayType.WeekEnd;
+
+            return WorkDayType.Normal; // check for vacation
+        }
+        /*
         // hh:mm
         public TimbratureBuilder(DateTime date, ReadOnlyCollection<IWebElement> rows)
         {
@@ -247,6 +268,20 @@ namespace MeegaFleeexTool.Timbrature
                 monthDescriptor.AddRitardoPranzo(day, ritardo);
                 monthDescriptor.SetGiustificativi(day, giustificativi);
             }
+        }*/
+        public void addDate(IWebElement row, DayOfWeek day)
+        {
+            /*int dayNum = -1;
+            int.TryParse(row.Text.Split(' ')[0], out dayNum); // get day of the month.*/ //TODO parse DayofWeek?
+
+            int entrata = GetEntrata(row);
+            int uscita = GetUscita(row);
+            int ritardo = GetRitardoPranzo(row);
+
+            int giustificativi = GetGiustificativi(row);
+            days[(int)day-1].SetWorkedHours(entrata, uscita);
+            days[(int)day-1].AddRitardo(ritardo);
+            days[(int)day-1].SetGiustificativi(giustificativi);
         }
 
         private int GetEntrata(IWebElement element)
@@ -366,14 +401,12 @@ namespace MeegaFleeexTool.Timbrature
         public int ComputeCurrentWeek()
         {
             int totalWorkedHour = 0;
-            int startIndex = Utils.GetFirstDayOfWeek(DateTime.Now) - 1;
-            int endIndex = startIndex + 5;
 
-            for(int i = startIndex; i <= endIndex; i++) // todo. might be between 2 months.
+            for(int i = 0; i < 5; i++) // todo. might be between 2 months.
             {
                 if(ShouldConsiderCurrentDayAsWorkDay(i))
                 {
-                    totalWorkedHour += monthDescriptor.Days[i].ActualWorked;
+                    totalWorkedHour += days[i].ActualWorked;
                 }
             }
 
@@ -382,12 +415,17 @@ namespace MeegaFleeexTool.Timbrature
 
         private bool ShouldConsiderCurrentDayAsWorkDay(int day)
         {
-            return monthDescriptor.Days.Count >= day && (monthDescriptor.Days[day].Day != DayOfWeek.Saturday && monthDescriptor.Days[day].Day != DayOfWeek.Sunday);
+            return day >= 0 && days.Count > day && (days[day].Day != DayOfWeek.Saturday && days[day].Day != DayOfWeek.Sunday);
         }
 
         public void UpdateTimbrature(int day, int entrata, int uscita)
         {
-            monthDescriptor.SetEntrateUscite(day, entrata, uscita);
+            int index = days.FindIndex(descr => descr.DayOfMonth == day);
+            if(index >= 0 && days.Count > index)
+            {
+                days[index].SetWorkedHours(entrata, uscita);
+            }
+            
         }
     }
 }
