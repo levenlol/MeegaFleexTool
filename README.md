@@ -2,7 +2,10 @@
 
 ## Current Version 0.1
 
-Download package from here: 
+Download from here: [Release](https://github.com/levenlol/MeegaFleexTool/releases)
+
+## How to
+Download .zip file from Releases. Unzip it and open MeegaFleexTool.exe.
 
 ## Authors
 
