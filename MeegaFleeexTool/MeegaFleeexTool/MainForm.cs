@@ -1,4 +1,4 @@
-﻿using MeegaFleeexTool.Online;
+using MeegaFleeexTool.Online;
 using MeegaFleeexTool.Timbrature;
 using System;
 using System.Collections.Generic;
@@ -21,13 +21,14 @@ namespace MeegaFleeexTool
         private List<TextBox> diffList;
         private List<TextBox> rolList;
         private List<TextBox> ritardoList;
+        private bool bForcedTodayExit;
 
         private System.ComponentModel.BackgroundWorker backgroundWorker;
 
         public MainForm()
         {
             InitializeComponent();
-
+            bForcedTodayExit = false;
             dateTimePicker.MinDate = new DateTime(2020, 1, 1);
 
             entrateList = new List<TextBox>() { lunEntrataTextBox, marEntrataTextBox, merEntrataTextBox, gioEntrataTextBox, venEntrataTextBox };
@@ -111,9 +112,17 @@ namespace MeegaFleeexTool
 
         private int UpdateDiffWeek()
         {
+            DateTime date = dateTimePicker.Value.Date;
+            DateTime today = DateTime.Now;
+            bool includesToday = date.Year == today.Year && today.DayOfYear <= (date.DayOfYear + 5);
             int totalDiff = 0;
             for(int i = 0; i < 5; i++)
             {
+                if(includesToday && i == (int)today.DayOfWeek - 1 && bForcedTodayExit)
+                {
+                    usciteList[i].Text = Utils.MinutesToString(today.Hour*60 +today.Minute);
+                }
+
                 int entrata = Math.Max(8 * 60 + 45, Utils.StringToMinutes(entrateList[i].Text));
                 int uscita = Math.Min(20 * 60, Utils.StringToMinutes(usciteList[i].Text));
                 int rol = Math.Max(0, Utils.StringToMinutes(rolList[i].Text));
@@ -138,7 +147,7 @@ namespace MeegaFleeexTool
             DateTime today = DateTime.Now;
             bool includesToday = date.Year == today.Year && today.DayOfYear <= (date.DayOfYear + 5);
 
-            for(int i = 0; i < 5; i++)
+            for (int i = 0; i < 5; i++)
             {
 
                 if(includesToday && i > (int)today.DayOfWeek-1)
@@ -149,13 +158,15 @@ namespace MeegaFleeexTool
                 else
                 {
                     DayDescriptor day = timbrature.Days[i];
-
+                    usciteList[i].BackColor = entrateList[i].BackColor;//revert color to original one
                     bool bWorkingDay = day.DayType == WorkDayType.Normal;
                     if(includesToday && i == (int)today.DayOfWeek - 1)
                     {
                         if(bWorkingDay && day.OrarioEntrata > 0 && today.Hour >= 17 && day.OrarioUscita <= 0)
                         {
+                            bForcedTodayExit = true;
                             day.SetWorkedHours(day.OrarioEntrata, (today.Hour*60)+today.Minute);
+                            usciteList[i].BackColor = Color.LightBlue;//lightblue it only if faking exit now
                         }
                     }
 
@@ -207,6 +218,7 @@ namespace MeegaFleeexTool
             object sender, RunWorkerCompletedEventArgs e)
         {
             resultTextBox.Text = "Processing...";
+            bForcedTodayExit = false;
             timbrature = (TimbratureBuilder) e.Result;
             // First, handle the case where an exception was thrown.
             int total = timbrature.ComputeCurrentWeek();
